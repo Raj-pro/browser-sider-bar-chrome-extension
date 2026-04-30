@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# Node dependencies (in case you add them later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Chrome Extension package files
+*.pem
+*.crx
+
+# Editors and IDEs
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
