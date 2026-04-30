@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sidebar Browser</title>
+  <style>
+    /* ══════════════════════════════════
+       Design Tokens
+    ══════════════════════════════════ */
+    :root {
+      /* Surfaces */
+      --bg-0: #09090f;
+      --bg-1: #0e0f18;
+      --bg-2: #13141f;
+      --bg-3: #191b29;
+      --bg-4: #1f2133;
+
+      /* Borders */
+      --border-dim:    rgba(255,255,255,0.04);
+      --border-base:   rgba(255,255,255,0.08);
+      --border-bright: rgba(255,255,255,0.14);
+
+      /* Accent — indigo-violet */
+      --accent:          #6c63ff;
+      --accent-2:        #a78bfa;
+      --accent-hover:    #7b73ff;
+      --accent-glow:     rgba(108, 99, 255, 0.22);
+      --accent-subtle:   rgba(108, 99, 255, 0.10);
+      --accent-gradient: linear-gradient(135deg, #6c63ff 0%, #a78bfa 100%);
+
+      /* Danger */
+      --danger:        #f43f5e;
+      --danger-subtle: rgba(244, 63, 94, 0.14);
+
+      /* Text */
+      --text-1: #eef0f8;
+      --text-2: #8892b8;
+      --text-3: #434868;
+
+      /* Shadows */
+      --shadow-sm:  0 1px 4px rgba(0,0,0,0.5);
+      --shadow-md:  0 4px 20px rgba(0,0,0,0.6);
+      --shadow-accent: 0 0 0 3px var(--accent-glow);
+
+      /* Motion */
+      --ease:   cubic-bezier(0.4, 0, 0.2, 1);
+      --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --t1: 140ms;
+      --t2: 200ms;
+
+      /* Radii */
+      --r-sm:   6px;
+      --r-md:   10px;
+      --r-lg:   14px;
+      --r-pill: 999px;
+    }
+
+    /* ══════════════════════════════════
+       Reset
+    ══════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+      background: var(--bg-0);
+      color: var(--text-1);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ══════════════════════════════════
+       Tab Bar
+    ══════════════════════════════════ */
+    #tab-bar {
+      display: flex;
+      align-items: stretch;
+      background: var(--bg-1);
+      border-bottom: 1px solid var(--border-base);
+      min-height: 40px;
+      padding: 6px 4px 0;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    /* Fade-out mask for overflowing tabs */
+    #tab-bar::after {
+      content: '';
+      position: absolute;
+      right: 38px; top: 0; bottom: 0;
+      width: 28px;
+      background: linear-gradient(to right, transparent, var(--bg-1));
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    #tabs {
+      display: flex;
+      align-items: flex-end;
+      flex: 1;
+      min-width: 0;
+      gap: 2px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+    }
+    #tabs::-webkit-scrollbar { display: none; }
+
+    .tab {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 5px 0 9px;
+      min-width: 82px;
+      max-width: 148px;
+      height: 31px;
+      background: transparent;
+      border-radius: var(--r-sm) var(--r-sm) 0 0;
+      border: 1px solid transparent;
+      border-bottom: none;
+      cursor: pointer;
+      user-select: none;
+      flex-shrink: 0;
+      transition: background var(--t1) var(--ease),
+                  border-color var(--t1) var(--ease);
+      animation: tab-in var(--t2) var(--spring);
+    }
+    @keyframes tab-in {
+      from { opacity: 0; transform: translateY(5px) scale(0.95); }
+      to   { opacity: 1; transform: translateY(0)  scale(1); }
+    }
+
+    .tab:hover { background: var(--bg-2); border-color: var(--border-dim); }
+
+    .tab.active {
+      background: var(--bg-0);
+      border-color: var(--border-base);
+      border-bottom-color: var(--bg-0);
+      z-index: 1;
+    }
+
+    /* Accent top-bar on active tab */
+    .tab.active::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: 8px; right: 8px;
+      height: 2px;
+      background: var(--accent-gradient);
+      border-radius: 0 0 var(--r-pill) var(--r-pill);
+    }
+
+    .tab-icon {
+      flex-shrink: 0;
+      width: 14px; height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+    .tab-icon img { width: 14px; height: 14px; border-radius: 3px; }
+
+    .tab-title {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+      letter-spacing: 0.01em;
+      transition: color var(--t1) var(--ease);
+    }
+    .tab:hover .tab-title  { color: var(--text-2); }
+    .tab.active .tab-title { color: var(--text-1); }
+
+    .tab-close {
+      flex-shrink: 0;
+      width: 18px; height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      border-radius: 5px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity var(--t1) var(--ease),
+                  background var(--t1) var(--ease);
+      color: var(--text-3);
+      padding: 0;
+    }
+    .tab:hover .tab-close,
+    .tab.active .tab-close { opacity: 1; }
+    .tab-close:hover {
+      background: var(--danger-subtle) !important;
+      color: var(--danger) !important;
+    }
+
+    #new-tab-btn {
+      position: relative;
+      z-index: 3;
+      flex-shrink: 0;
+      width: 32px;
+      border: none;
+      background: transparent;
+      color: var(--text-3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--r-sm);
+      align-self: center;
+      margin-bottom: 3px;
+      height: 26px;
+      transition: background var(--t1) var(--ease),
+                  color var(--t1) var(--ease),
+                  transform var(--t2) var(--spring);
+    }
+    #new-tab-btn:hover { color: var(--text-1); background: var(--bg-3); }
+    #new-tab-btn:active { transform: scale(0.88); }
+
+    /* ══════════════════════════════════
+       Toolbar
+    ══════════════════════════════════ */
+    #toolbar {
+      flex-shrink: 0;
+      padding: 10px 10px 9px;
+      background: var(--bg-0);
+      border-bottom: 1px solid var(--border-base);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* URL row */
+    #url-row {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    #url-wrap {
+      flex: 1;
+      min-width: 0;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    #url-input {
+      width: 100%;
+      padding: 7px 32px 7px 14px;
+      border-radius: var(--r-pill);
+      border: 1.5px solid var(--border-base);
+      background: var(--bg-2);
+      color: var(--text-1);
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      outline: none;
+      transition: border-color var(--t1) var(--ease),
+                  box-shadow var(--t1) var(--ease),
+                  background var(--t1) var(--ease);
+    }
+    #url-input::placeholder { color: var(--text-3); }
+    #url-input:hover {
+      border-color: var(--border-bright);
+      background: var(--bg-3);
+    }
+    #url-input:focus {
+      border-color: var(--accent);
+      box-shadow: var(--shadow-accent);
+      background: var(--bg-3);
+    }
+
+    #clear-btn {
+      position: absolute;
+      right: 9px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 17px; height: 17px;
+      border: none;
+      border-radius: 50%;
+      background: var(--bg-4);
+      color: var(--text-3);
+      cursor: pointer;
+      padding: 0;
+      transition: background var(--t1) var(--ease),
+                  color var(--t1) var(--ease),
+                  transform var(--t2) var(--spring);
+    }
+    #clear-btn:hover { background: var(--border-bright); color: var(--text-1); }
+    #clear-btn:active { transform: scale(0.85); }
+
+    .toolbar-btn {
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      border: 1.5px solid var(--border-base);
+      border-radius: var(--r-md);
+      background: var(--bg-2);
+      color: var(--text-2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--t1) var(--ease),
+                  border-color var(--t1) var(--ease),
+                  color var(--t1) var(--ease),
+                  transform var(--t2) var(--spring);
+    }
+    .toolbar-btn:hover {
+      background: var(--bg-3);
+      border-color: var(--border-bright);
+      color: var(--text-1);
+    }
+    .toolbar-btn:active { transform: scale(0.88); }
+
+    #go-btn {
+      background: var(--accent);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(108,99,255,0.35);
+    }
+    #go-btn:hover {
+      background: var(--accent-hover);
+      border-color: transparent;
+      box-shadow: 0 4px 16px rgba(108,99,255,0.45);
+    }
+
+    /* ══════════════════════════════════
+       Preset Chips
+    ══════════════════════════════════ */
+    #presets-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #presets-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-3);
+    }
+
+    #presets-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border: none;
+      background: transparent;
+      color: var(--text-3);
+      font-size: 10px;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: var(--r-sm);
+      transition: color var(--t1) var(--ease), background var(--t1) var(--ease);
+    }
+    #presets-toggle:hover { color: var(--text-2); background: var(--bg-3); }
+
+    #presets-toggle svg {
+      transition: transform var(--t2) var(--ease);
+    }
+    #presets-toggle.collapsed svg { transform: rotate(-90deg); }
+
+    #presets-wrap {
+      display: grid;
+      grid-template-rows: 1fr;
+      overflow: hidden;
+      transition: grid-template-rows 220ms var(--ease),
+                  opacity 180ms var(--ease);
+      opacity: 1;
+    }
+    #presets-wrap.collapsed {
+      grid-template-rows: 0fr;
+      opacity: 0;
+    }
+    #presets-inner {
+      overflow: hidden;
+    }
+
+    #presets {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+      padding-top: 2px;
+    }
+
+    .chip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 8px 4px 7px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border-base);
+      background: var(--bg-2);
+      color: var(--text-2);
+      font-size: 10px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: 0.025em;
+      white-space: nowrap;
+      transition: background var(--t1) var(--ease),
+                  border-color var(--t1) var(--ease),
+                  color var(--t1) var(--ease),
+                  transform var(--t2) var(--spring),
+                  box-shadow var(--t1) var(--ease);
+    }
+    .chip-icon { font-size: 16px; line-height: 1; }
+    .chip:hover {
+      background: var(--accent-subtle);
+      border-color: rgba(108,99,255,0.32);
+      color: var(--text-1);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(108,99,255,0.18);
+    }
+    .chip:active { transform: translateY(0) scale(0.95); box-shadow: none; }
+
+    /* ══════════════════════════════════
+       Content + Loading Bar
+    ══════════════════════════════════ */
+    #content {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #loading-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      z-index: 10;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    #loading-bar::after {
+      content: '';
+      display: block;
+      height: 100%;
+      width: 40%;
+      background: var(--accent-gradient);
+      border-radius: var(--r-pill);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    #loading-bar.loading::after {
+      opacity: 1;
+      animation: bar-sweep 1.4s cubic-bezier(0.4,0,0.6,1) infinite;
+    }
+    @keyframes bar-sweep {
+      0%   { transform: translateX(-120%); }
+      100% { transform: translateX(300%); }
+    }
+
+    /* ══════════════════════════════════
+       Placeholder (new-tab screen)
+    ══════════════════════════════════ */
+    .placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+      animation: fade-up 0.22s var(--ease);
+    }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .placeholder-icon {
+      width: 60px; height: 60px;
+      border-radius: 18px;
+      background: var(--bg-2);
+      border: 1px solid var(--border-base);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+    }
+    .placeholder-icon svg {
+      width: 28px; height: 28px;
+      stroke: var(--text-3);
+    }
+
+    .placeholder-text { text-align: center; }
+    .placeholder-text h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-2);
+      letter-spacing: -0.01em;
+      margin-bottom: 5px;
+    }
+    .placeholder-text p {
+      font-size: 11.5px;
+      color: var(--text-3);
+      line-height: 1.75;
+    }
+
+    .placeholder-shortcuts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    .shortcut-hint {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
+      color: var(--text-3);
+    }
+    kbd {
+      font-family: inherit;
+      font-size: 9.5px;
+      padding: 2px 6px;
+      background: var(--bg-3);
+      border: 1px solid var(--border-bright);
+      border-radius: 5px;
+      color: var(--text-2);
+      letter-spacing: 0.04em;
+      box-shadow: 0 1px 0 var(--border-bright);
+    }
+
+    /* ══════════════════════════════════
+       Iframe
+    ══════════════════════════════════ */
+    .tab-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none;
+      background: #fff;
+    }
+    .tab-frame.active { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- ── Tab Bar ── -->
+<div id="tab-bar">
+  <div id="tabs"></div>
+  <button id="new-tab-btn" title="New tab  Ctrl+T">
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+      <line x1="5.5" y1="1" x2="5.5" y2="10"/>
+      <line x1="1"   y1="5.5" x2="10" y2="5.5"/>
+    </svg>
+  </button>
+</div>
+
+<!-- ── Toolbar ── -->
+<div id="toolbar">
+  <div id="url-row">
+    <div id="url-wrap">
+      <input id="url-input" type="text" placeholder="Search or enter a URL…" spellcheck="false" autocomplete="off" />
+      <button id="clear-btn" title="Clear">
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="1" y1="1" x2="8" y2="8"/>
+          <line x1="8" y1="1" x2="1" y2="8"/>
+        </svg>
+      </button>
+    </div>
+
+    <button id="refresh-btn" class="toolbar-btn" title="Reload  Ctrl+R">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+    </button>
+
+    <button id="go-btn" class="toolbar-btn" title="Go  Enter">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="presets-row">
+    <span id="presets-label">Quick Access</span>
+    <button id="presets-toggle" title="Toggle quick access">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="2 4 5 7 8 4"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="presets-wrap">
+    <div id="presets-inner">
+      <div id="presets">
+        <button class="chip" data-url="https://www.google.com">
+          <span class="chip-icon">🔍</span>Google
+        </button>
+        <button class="chip" data-url="https://docs.google.com/document">
+          <span class="chip-icon">📄</span>Docs
+        </button>
+        <button class="chip" data-url="https://docs.google.com/spreadsheets">
+          <span class="chip-icon">📊</span>Sheets
+        </button>
+        <button class="chip" data-url="https://chatgpt.com">
+          <span class="chip-icon">🤖</span>ChatGPT
+        </button>
+        <button class="chip" data-url="https://claude.ai">
+          <span class="chip-icon">✨</span>Claude
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Content ── -->
+<div id="content">
+  <div id="loading-bar"></div>
+</div>
+
+<script src="sidepanel.js"></script>
+</body>
+</html>
